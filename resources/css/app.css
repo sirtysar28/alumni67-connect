@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Sembunyikan elemen Alpine sebelum JS termuat */
+[x-cloak] { display: none !important; }
+
+/* ============================================================
+   TEMA WARNA — 2 versi: DARK (default) & LIGHT
+   Setiap warna = channel RGB (R G B) agar modifier opacity
+   seperti bg-navy-deep/90 tetap berfungsi.
+   Mode light: aktifkan class "light" di <html>.
+   ============================================================ */
+
+/* ---- DARK MODE (default) ---- */
+:root {
+    --c-navy: 36 17 84;        /* #241154 */
+    --c-navy-deep: 21 10 52;   /* #150A34 */
+    --c-navy-card: 52 32 110;  /* #34206E */
+    --c-neon: 1 245 1;         /* #01F501 */
+    --c-neon-dim: 1 245 1;
+    --c-cream: 246 243 234;    /* #F6F3EA */
+    --c-cream-dim: 210 203 232;/* #D2CBE8 */
+    --c-line: 220 212 236;     /* #DCD4EC */
+    --c-maroon: 122 63 224;    /* #7A3FE0 */
+    --c-gold: 86 48 183;       /* #5630B7 */
+}
+
+/* ---- LIGHT MODE ---- */
+html.light {
+    --c-navy: 232 226 248;        /* lavender lembut */
+    --c-navy-deep: 246 243 234;   /* krem — bg halaman */
+    --c-navy-card: 255 255 255;   /* kartu putih */
+    --c-neon: 1 138 1;            /* hijau tua — kontras di bg terang */
+    --c-neon-dim: 1 138 1;
+    --c-cream: 26 12 60;          /* ungu gelap — teks utama */
+    --c-cream-dim: 92 78 140;     /* ungu redup — teks sekunder */
+    --c-line: 200 190 226;
+    --c-maroon: 108 52 204;
+    --c-gold: 225 216 248;        /* strip marquee terang */
+}
+
+/* ============ Alumni67 Connect — tema navy + neon ============ */
+
+@layer base {
+    html { scroll-behavior: smooth; }
+    body { @apply bg-navy-deep text-cream antialiased; }
+    ::selection { @apply bg-neon text-navy-deep; }
+}
+
+@layer components {
+    .wrap { @apply mx-auto w-full max-w-6xl px-4 sm:px-6; }
+
+    /* Kartu */
+    .card { @apply rounded-lg border border-neonDim/40 bg-navy-card/60 p-5 shadow-lg shadow-black/30; }
+    .card-plain { @apply rounded-lg border border-line/20 bg-white/5 p-5; }
+
+    /* Tombol */
+    .btn { @apply inline-flex items-center justify-center gap-2 rounded px-5 py-2.5 text-sm font-semibold transition; }
+    .btn-neon { @apply btn bg-neon text-navy-deep hover:bg-[#4dff4d] hover:-translate-y-0.5; }
+    .btn-outline { @apply btn border border-cream/30 text-cream hover:border-neon hover:text-neon; }
+    .btn-ghost { @apply btn text-creamDim hover:text-cream; }
+    .btn-danger { @apply btn bg-red-500/90 text-white hover:bg-red-500; }
+
+    /* Form */
+    .label { @apply mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-creamDim; }
+    .input {
+        @apply block w-full rounded border border-line/30 bg-navy-deep/80 px-3 py-2.5 text-sm text-cream
+            placeholder:text-creamDim/50 focus:border-neon focus:outline-none focus:ring-1 focus:ring-neon;
+    }
+    select.input option { @apply bg-navy-deep text-cream; }
+    .input-error { @apply border-red-400; }
+    .error-text { @apply mt-1 text-xs text-red-300; }
+
+    /* Chip / badge */
+    .chip { @apply inline-flex items-center gap-1 rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-wide; }
+    .chip-neon { @apply chip border-neonDim bg-neon/10 text-neon; }
+    .chip-line { @apply chip border-line/30 text-creamDim; }
+    .badge-verified { @apply inline-flex items-center gap-1 rounded-full bg-neon px-2 py-0.5 text-[10px] font-bold text-navy-deep; }
+    .badge-pending { @apply inline-flex items-center gap-1 rounded-full bg-yellow-400/20 px-2 py-0.5 text-[10px] font-bold text-yellow-300; }
+
+    /* Judul section */
+    .kicker { @apply mb-2 flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-neon; }
+    .kicker::before { content: ""; @apply h-px w-6 bg-neon; }
+    .h-display { @apply font-display font-bold text-2xl sm:text-3xl text-cream; }
+
+    /* Avatar inisial */
+    .avatar { @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-maroon to-navy font-display text-sm text-cream; }
+
+    /* Navbar bawah (mobile) — sesuai konsep: Home, Feed, Jobs, Event, Profile */
+    .bottom-nav-link { @apply flex flex-col items-center gap-1 py-2 text-[10px] font-medium text-creamDim; }
+    .bottom-nav-link.active { @apply text-neon; }
+
+    /* Tabel admin */
+    .th { @apply px-3 py-2 text-left font-mono text-[11px] uppercase tracking-wider text-creamDim; }
+    .td { @apply px-3 py-2.5 text-sm text-cream/90; }
+
+    /* Flash message */
+    .flash-ok { @apply rounded border border-neonDim bg-neon/10 px-4 py-3 text-sm text-neon; }
+    .flash-err { @apply rounded border border-red-400/40 bg-red-400/10 px-4 py-3 text-sm text-red-200; }
+}
+
+/* Marquee strip ala situs reuni */
+.strip-track { animation: scroll-left 26s linear infinite; }
+@keyframes scroll-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* Pola scanline halus di hero */
+.hero-scan { background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 3px); }
+
+/* ============ LOGO GANDA — varian dark & light mode ============
+   Dipakai komponen <x-site-logo>: dua <img> ditumpuk, cuma satu yang
+   tampil sesuai tema. Toggle class html.light (lihat theme-head.blade.php). */
+.logo-img-dark  { display: inline-block; }
+.logo-img-light { display: none; }
+html.light .logo-img-dark  { display: none; }
+html.light .logo-img-light { display: inline-block; }
