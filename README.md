@@ -152,14 +152,7 @@ Buka **`https://domain-anda.com/setup.php`** di browser — file `public/setup.p
 > Installer terkunci otomatis setelah sukses (file `storage/app/setup-installed.lock`) — file `setup.php` boleh dihapus setelah selesai.
 > Ini sekaligus mengatasi error `SQLSTATE[42S02] ... sessions doesn't exist` karena tabel dibuat oleh installer.
 
-Akun bawaan hasil seed (ganti password setelah login!):
 
-| Role | Email | Password |
-|---|---|---|
-| Super Admin | `admin@alumnismun67halim2003.id` | `password` |
-| Pengurus | `pengurus@alumni67.id` | `password` |
-| Ketua Angkatan | `ketua2003@alumni67.id` | `password` |
-| Alumni | `andi@alumni67.id` | `password` |
 
 ### 3. Terminal Artisan (khusus Super Admin)
 Login sebagai Super Admin → **Admin → Terminal** (`/admin/terminal`) untuk menjalankan perintah artisan dari browser — tombol cepat berkelompok:
