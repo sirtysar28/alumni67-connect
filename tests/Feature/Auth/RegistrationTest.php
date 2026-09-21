@@ -18,14 +18,20 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
+        // Register kini butuh pilihan kelas + TIDAK auto-login (menunggu approval admin)
         $response = $this->post('/register', [
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => 'password',
+            'name'                  => 'Test User',
+            'email'                 => 'test@example.com',
+            'password'              => 'password',
             'password_confirmation' => 'password',
+            'kelas'                 => 'IPA 1',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertGuest();
+        $response->assertRedirect(route('login', absolute: false));
+
+        $user = \App\Models\User::where('email', 'test@example.com')->first();
+        $this->assertNotNull($user);
+        $this->assertFalse((bool) $user->is_approved);
     }
 }

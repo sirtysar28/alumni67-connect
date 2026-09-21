@@ -126,6 +126,77 @@ routes/web.php                     # Semua route
 - **SQLite** (dev default) / MySQL / PostgreSQL
 - Laravel Sanctum (siap untuk API/mobile app Phase 3)
 
+## 🚀 Deploy ke cPanel / Shared Hosting (TANPA SSH)
+
+Karena hosting shared tidak punya terminal, aplikasi punya **installer web** dan **terminal artisan di panel admin**.
+
+### 1. Upload & persiapan
+1. Upload seluruh file project ke folder hosting, arahkan *document root* domain ke `public/`.
+2. Buat database MySQL di menu **cPanel → MySQL® Databases** (catat nama DB, user, password).
+3. Pastikan `.env` ada (salin dari `.env.example` bila belum). Isi minimal:
+   ```env
+   APP_URL=https://domain-anda.com
+   SESSION_DRIVER=database
+   ```
+
+### 2. Jalankan installer
+Buka **`https://domain-anda.com/setup.php`** di browser — file `public/setup.php` adalah installer **mandiri** yang tidak melewati routing Laravel (kebal 404 / route cache):
+
+| Langkah | Isi |
+|---|---|
+| 1 | Cek otomatis kebutuhan server (PHP ≥ 8.2, ekstensi, folder writable, APP_KEY — dibuat otomatis bila kosong). Cache route/config lama di `bootstrap/cache/` juga dibersihkan otomatis |
+| 2 | Isi koneksi database cPanel (host biasanya `localhost`) → **Simpan & Tes Koneksi** (tersimpan ke `.env`) |
+| 3 | Klik **⚡ Jalankan Instalasi** → menjalankan `migrate --force`, `db:seed --force`, `storage:link`, `optimize:clear` |
+
+> Alternatif: route **`/setup`** (wizard yang sama, lewat routing Laravel) juga tersedia.
+> Installer terkunci otomatis setelah sukses (file `storage/app/setup-installed.lock`) — file `setup.php` boleh dihapus setelah selesai.
+> Ini sekaligus mengatasi error `SQLSTATE[42S02] ... sessions doesn't exist` karena tabel dibuat oleh installer.
+
+Akun bawaan hasil seed (ganti password setelah login!):
+
+| Role | Email | Password |
+|---|---|---|
+| Super Admin | `admin@alumnismun67halim2003.id` | `password` |
+| Pengurus | `pengurus@alumni67.id` | `password` |
+| Ketua Angkatan | `ketua2003@alumni67.id` | `password` |
+| Alumni | `andi@alumni67.id` | `password` |
+
+### 3. Terminal Artisan (khusus Super Admin)
+Login sebagai Super Admin → **Admin → Terminal** (`/admin/terminal`) untuk menjalankan perintah artisan dari browser — tombol cepat berkelompok:
+
+- 📚 **Database**: `migrate --force` · `migrate:status` · `db:seed --force`
+- 📁 **File & Storage**: `storage:link` (symlink `public/storage`, otomatis fallback ke route `/storage/{path}` bila symlink dimatikan server)
+- 🧹 **Cache**: `optimize:clear` · `cache:clear` · `config:clear`
+- 🔧 **Sistem**: `route:list` · `setup:roles` (buat role standar + `--user=<id>` untuk promote super_admin)
+- ☠️ `migrate:fresh --seed` (konfirmasi ekstra)
+
+Hanya perintah **whitelist** yang diizinkan (aman dari injeksi), perintah destruktif selalu minta konfirmasi, dan halaman hanya bisa diakses role `super_admin`.
+
+### 4. Lupa/perbaiki role Super Admin (menu Terminal tidak muncul?)
+Jika roles belum ada di database (mis. seed belum jalan) sehingga tak ada super_admin:
+
+1. Buka **`https://domain-anda.com/setup.php?repair`**
+2. Pilih akun kamu → **🔑 Jadikan Super Admin** → roles standar dibuat otomatis
+3. **Logout lalu login ulang** (role di-cache per sesi) → menu Terminal muncul
+
+> Mode perbaikan otomatis **nonaktif** begitu sudah ada ≥1 super_admin (aman). Bisa juga lewat terminal: `setup:roles --user=5`.
+
+## 👥 Approval Akun Baru (register → verifikasi admin)
+
+Akun hasil register **tidak langsung aktif** — harus disetujui admin dulu:
+
+1. User daftar → akun `is_approved = false`, **tidak bisa login** (diberi pesan menunggu persetujuan) + email konfirmasi "menunggu persetujuan" (bila SMTP aktif).
+2. Admin buka **Admin → ⏳ Setujui Akun** (`/admin/user-pending`) → **✓ Setujui** (email selamat datang terkirim otomatis) atau **✗ Tolak** dengan alasan (email penolakan).
+3. User yang disetujui login seperti biasa.
+
+> Migration: `2026_09_21_..._add_is_approved_to_users_table` — kolom `is_approved` default `true` sehingga user lama tetap aktif; hanya register baru yang dikunci. Jalankan `migrate --force` lewat Terminal setelah upload.
+
+## 📧 SMTP & Email HTML
+
+Konfigurasi SMTP lewat **Admin → 🎨 Pengaturan Situs** (mailer, host, port, username, password, encryption, from) — tersimpan di database & menimpa config runtime (tanpa edit `.env`). Ada tombol **Kirim Email Test**.
+
+Email HTML bertema navy+neon sudah tersedia untuk: reset password, verifikasi email, pendaftaran menunggu persetujuan, akun disetujui, dan penolakan (lihat `resources/views/emails/`).
+
 ---
 
 Dibuat untuk komunitas alumni SMUN 67 Halim · #SatuAngkatanSatuKompak 🤝

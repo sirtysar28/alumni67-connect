@@ -48,21 +48,21 @@ class DatabaseSeeder extends Seeder
         // Super Admin
         $admin = User::firstOrCreate(
             ['email' => 'admin@alumnismun67halim2003.id'],
-            ['name' => 'Admin Alumni67', 'password' => 'password', 'angkatan_id' => $angkatan2003->id]
+            ['name' => 'Admin Alumni67', 'password' => 'password', 'angkatan_id' => $angkatan2003->id, 'is_approved' => true]
         );
         $admin->assignRole('super_admin');
 
         // Pengurus
         $pengurus = User::firstOrCreate(
             ['email' => 'pengurus@alumni67.id'],
-            ['name' => 'Rina Kartika', 'password' => 'password', 'angkatan_id' => $angkatan2003->id]
+            ['name' => 'Rina Kartika', 'password' => 'password', 'angkatan_id' => $angkatan2003->id, 'is_approved' => true]
         );
         $pengurus->assignRole('pengurus');
 
         // Ketua angkatan 2003
         $ketua = User::firstOrCreate(
             ['email' => 'ketua2003@alumni67.id'],
-            ['name' => 'Budi Santoso', 'password' => 'password', 'angkatan_id' => $angkatan2003->id]
+            ['name' => 'Budi Santoso', 'password' => 'password', 'angkatan_id' => $angkatan2003->id, 'is_approved' => true]
         );
         $ketua->assignRole('ketua_angkatan');
 
@@ -78,7 +78,7 @@ class DatabaseSeeder extends Seeder
         foreach ($demo as [$nama, $email, $kelas, $kerja, $perusahaan, $bidang, $kota, $skill]) {
             $u = User::firstOrCreate(
                 ['email' => $email],
-                ['name' => $nama, 'password' => 'password', 'angkatan_id' => $angkatan2003->id]
+                ['name' => $nama, 'password' => 'password', 'angkatan_id' => $angkatan2003->id, 'is_approved' => true]
             );
             $u->assignRole('alumni');
             $alumniUsers->push($u);

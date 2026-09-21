@@ -33,7 +33,6 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
             'throw' => false,
             'report' => false,
         ],
@@ -43,6 +42,10 @@ return [
             'root' => storage_path('app/public'),
             'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
+            // Sajikan file lewat PHP (route /storage/{path}) — fallback otomatis
+            // saat `php artisan storage:link` tidak bisa jalan (cPanel mematikan
+            // symlink()/exec()). Kalau symlink ada, web server menyajikan lebih dulu.
+            'serve' => true,
             'throw' => false,
             'report' => false,
         ],

@@ -26,6 +26,8 @@ class User extends Authenticatable
         'email',
         'password',
         'angkatan_id',
+        'is_approved',
+        'approval_note',
     ];
 
     /**

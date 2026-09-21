@@ -19,11 +19,15 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['is_approved' => true]);
+
+        // Login memakai captcha matematika — set jawaban di session
+        session(['login_captcha' => hash('sha256', '10')]);
 
         $response = $this->post('/login', [
-            'email' => $user->email,
+            'email'    => $user->email,
             'password' => 'password',
+            'captcha'  => '10',
         ]);
 
         $this->assertAuthenticated();
@@ -34,9 +38,12 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
+        session(['login_captcha' => hash('sha256', '10')]);
+
         $this->post('/login', [
-            'email' => $user->email,
+            'email'    => $user->email,
             'password' => 'wrong-password',
+            'captcha'  => '10',
         ]);
 
         $this->assertGuest();

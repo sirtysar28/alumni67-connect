@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\TerminalController;
 use App\Http\Controllers\BeritaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DirectoryController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\ForumController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StorageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -20,6 +22,15 @@ use Illuminate\Support\Facades\Route;
 */
 
 /* ---------- PUBLIK (guest) ---------- */
+
+/* Fallback penyajian file storage/app/public TANPA symlink — aktif otomatis
+ * di shared hosting (cPanel) yang mematikan symlink()/exec() sehingga
+ * `php artisan storage:link` gagal. Kalau symlink tersedia, web server
+ * menyajikan file lebih dulu dan route ini tidak pernah terpakai. */
+Route::get('/storage/{path}', [StorageController::class, 'show'])
+    ->where('path', '.*')
+    ->name('storage.fallback');
+
 Route::get('/', [LandingController::class, 'index'])->name('home');
 Route::get('/berita', [BeritaController::class, 'index'])->name('berita.index');
 Route::get('/berita/{berita:slug}', [BeritaController::class, 'show'])->name('berita.show');
@@ -75,6 +86,11 @@ Route::middleware('auth')->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
 
+        // Approval akun baru (hasil register — akun tidak aktif sebelum disetujui)
+        Route::get('/user-pending', [AdminController::class, 'pendingUsers'])->name('users.pending');
+        Route::post('/user/{user}/approve', [AdminController::class, 'approveUser'])->name('users.approve');
+        Route::post('/user/{user}/reject', [AdminController::class, 'rejectUser'])->name('users.reject');
+
         Route::get('/verifikasi', [AdminController::class, 'verifications'])->name('verifications');
         Route::post('/verifikasi/{profile}/approve', [AdminController::class, 'approveProfile'])->name('verifications.approve');
         Route::post('/verifikasi/{profile}/reject', [AdminController::class, 'rejectProfile'])->name('verifications.reject');
@@ -105,6 +121,11 @@ Route::middleware('auth')->group(function () {
 
         // Pengaturan tampilan (logo & tema) — HANYA Super Admin
         Route::post('/pengaturan/tampilan', [AdminController::class, 'updateAppearance'])->name('settings.appearance');
+
+        // Terminal Artisan di browser (migrate, seed, cache, dll.) — HANYA Super Admin
+        // berguna di cPanel/shared hosting yang tidak punya akses SSH.
+        Route::get('/terminal', [TerminalController::class, 'index'])->name('terminal');
+        Route::post('/terminal', [TerminalController::class, 'run'])->name('terminal.run');
     });
 });
 

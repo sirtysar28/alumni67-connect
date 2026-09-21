@@ -4,7 +4,11 @@
         <h1 class="font-display text-2xl text-cream sm:text-3xl">Kendalikan komunitas 🛠️</h1>
         <p class="mt-1 text-sm text-creamDim">Role kamu: <span class="text-neon">{{ auth()->user()->getRoleNames()->join(', ') }}</span></p>
 
-        <div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-5">
+            <a href="{{ route('admin.users.pending') }}" class="card transition hover:border-neon">
+                <div class="font-display text-3xl {{ $pendingAkun ? 'text-yellow-300' : 'text-neon' }}">{{ $pendingAkun }}</div>
+                <div class="font-mono text-[11px] uppercase text-creamDim">Akun menunggu</div>
+            </a>
             <a href="{{ route('admin.verifications') }}" class="card transition hover:border-neon">
                 <div class="font-display text-3xl {{ $pendingVerify ? 'text-yellow-300' : 'text-neon' }}">{{ $pendingVerify }}</div>
                 <div class="font-mono text-[11px] uppercase text-creamDim">Verifikasi alumni</div>
@@ -23,11 +27,19 @@
             </div>
         </div>
 
-        <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <a href="{{ route('admin.users.pending') }}" class="card text-center transition hover:border-neon">⏳<div class="mt-1 text-sm font-semibold text-cream">Setujui Akun</div><div class="text-[10px] text-creamDim">pendaftar baru {{ $pendingAkun ? '· '.$pendingAkun.' menunggu!' : '' }}</div></a>
             <a href="{{ route('admin.berita.create') }}" class="card text-center transition hover:border-neon">📰<div class="mt-1 text-sm font-semibold text-cream">Tulis Berita</div></a>
             <a href="{{ route('admin.event.create') }}" class="card text-center transition hover:border-neon">🎉<div class="mt-1 text-sm font-semibold text-cream">Buat Event</div></a>
             <a href="{{ route('admin.verifications') }}" class="card text-center transition hover:border-neon">✓<div class="mt-1 text-sm font-semibold text-cream">Verifikasi Badge</div></a>
             <a href="{{ route('admin.settings') }}" class="card text-center transition hover:border-neon">🎨<div class="mt-1 text-sm font-semibold text-cream">Pengaturan Situs</div><div class="text-[10px] text-creamDim">logo · tema · SMTP</div></a>
+            @role('super_admin')
+                <a href="{{ route('admin.terminal') }}" class="card text-center transition hover:border-neon">
+                    <div class="font-mono text-lg text-neon">&gt;_</div>
+                    <div class="mt-1 text-sm font-semibold text-cream">Terminal Artisan</div>
+                    <div class="text-[10px] text-creamDim">migrate · seed · cache — Super Admin</div>
+                </a>
+            @endrole
         </div>
 
         {{-- ==== BERITA TERPUBLISH ==== --}}

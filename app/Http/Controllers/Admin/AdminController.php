@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AccountApproved;
+use App\Mail\AccountRejected;
 use App\Models\AlumniProfile;
 use App\Models\Angkatan;
 use App\Models\Berita;
@@ -10,6 +12,7 @@ use App\Models\DonationTransaction;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -39,11 +42,57 @@ class AdminController extends Controller implements HasMiddleware
     {
         $pendingVerify = AlumniProfile::where('verification_status', 'pending')->with('user')->count();
         $pendingDonasi = DonationTransaction::where('status', 'pending')->count();
+        $pendingAkun   = User::where('is_approved', false)->count();
         $events        = Event::upcoming()->count();
-        $alumniTotal   = \App\Models\User::whereHas('profile')->count();
+        $alumniTotal   = User::whereHas('profile')->count();
         $beritas       = Berita::published()->with('user')->latest('published_at')->limit(5)->get();
 
-        return view('admin.index', compact('pendingVerify', 'pendingDonasi', 'events', 'alumniTotal', 'beritas'));
+        return view('admin.index', compact('pendingVerify', 'pendingDonasi', 'pendingAkun', 'events', 'alumniTotal', 'beritas'));
+    }
+
+    /* ---------- APPROVAL AKUN BARU (hasil register) ---------- */
+    public function pendingUsers()
+    {
+        $users = User::where('is_approved', false)
+            ->with(['profile', 'angkatan'])
+            ->latest('id')
+            ->get();
+
+        return view('admin.users-pending', compact('users'));
+    }
+
+    public function approveUser(Request $request, User $user)
+    {
+        $user->update(['is_approved' => true, 'approval_note' => null]);
+
+        $mailInfo = $this->sendSafely(new AccountApproved($user), $user);
+
+        return back()->with('success', "Akun {$user->name} disetujui ✓ · {$mailInfo}");
+    }
+
+    public function rejectUser(Request $request, User $user)
+    {
+        $alasan = $request->string('alasan', 'Data pendaftaran belum sesuai — silakan hubungi pengurus komunitas.')->trim();
+
+        $user->update(['is_approved' => false, 'approval_note' => $alasan]);
+
+        $mailInfo = $this->sendSafely(new AccountRejected($user, $alasan), $user);
+
+        return back()->with('success', "Pendaftaran {$user->name} ditolak · {$mailInfo}");
+    }
+
+    /** Kirim email best-effort — jangan gagalkan aksi admin walau SMTP bermasalah. */
+    private function sendSafely(\Illuminate\Mail\Mailable $mailable, User $user): string
+    {
+        try {
+            Mail::to($user->email)->send($mailable);
+
+            return 'email notifikasi terkirim ✓';
+        } catch (\Throwable $e) {
+            report($e);
+
+            return 'email GAGAL dikirim (cek pengaturan SMTP): '.\Illuminate\Support\Str::limit($e->getMessage(), 120);
+        }
     }
 
     /* ---------- VERIFIKASI BADGE ALUMNI ---------- */

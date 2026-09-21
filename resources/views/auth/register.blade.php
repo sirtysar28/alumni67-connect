@@ -87,6 +87,11 @@
                         Daftar Sekarang 🎉
                     </x-primary-button>
                 </form>
+
+                <div class="mt-4 rounded border border-neonDim/30 bg-neon/5 px-4 py-3 text-xs leading-relaxed text-creamDim">
+                    ℹ️ Setelah mendaftar, akun kamu <b class="text-cream">menunggu persetujuan admin</b> dulu
+                    sebelum bisa login — kami kabari via email begitu disetujui. ⏳
+                </div>
             </div>
 
             <p class="mt-6 text-center text-sm text-creamDim">
