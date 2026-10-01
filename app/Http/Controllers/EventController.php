@@ -56,6 +56,14 @@ class EventController extends Controller
             'kode_tiket' => 'R67-'.strtoupper(Str::random(6)),
         ]);
 
+        // 🔔 Konfirmasi registrasi ke peserta
+        auth()->user()->notifySafe(new \App\Notifications\AlumniNotification(
+            title: '🎉 Registrasi event berhasil',
+            message: 'Kamu terdaftar di «'.$event->judul.'». E-ticket dengan QR code siap diunduh!',
+            url: '/tiket-saya',
+            icon: '🎉',
+        ));
+
         return redirect()->route('tickets.show', $reg)
             ->with('success', 'Pendaftaran berhasil! Simpan e-ticket kamu.');
     }

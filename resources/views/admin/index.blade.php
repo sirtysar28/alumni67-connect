@@ -21,10 +21,17 @@
                 <div class="font-display text-3xl text-neon">{{ $events }}</div>
                 <div class="font-mono text-[11px] uppercase text-creamDim">Event mendatang</div>
             </a>
-            <div class="card">
-                <div class="font-display text-3xl text-neon">{{ $alumniTotal }}</div>
-                <div class="font-mono text-[11px] uppercase text-creamDim">Alumni terdaftar</div>
-            </div>
+            @role('super_admin')
+                <a href="{{ route('admin.users.index') }}" class="card transition hover:border-neon">
+                    <div class="font-display text-3xl text-neon">{{ $alumniTotal }}</div>
+                    <div class="font-mono text-[11px] uppercase text-creamDim">Alumni terdaftar · kelola →</div>
+                </a>
+            @else
+                <div class="card">
+                    <div class="font-display text-3xl text-neon">{{ $alumniTotal }}</div>
+                    <div class="font-mono text-[11px] uppercase text-creamDim">Alumni terdaftar</div>
+                </div>
+            @endrole
         </div>
 
         <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -32,6 +39,9 @@
             <a href="{{ route('admin.berita.create') }}" class="card text-center transition hover:border-neon">📰<div class="mt-1 text-sm font-semibold text-cream">Tulis Berita</div></a>
             <a href="{{ route('admin.event.create') }}" class="card text-center transition hover:border-neon">🎉<div class="mt-1 text-sm font-semibold text-cream">Buat Event</div></a>
             <a href="{{ route('admin.verifications') }}" class="card text-center transition hover:border-neon">✓<div class="mt-1 text-sm font-semibold text-cream">Verifikasi Badge</div></a>
+            @role('super_admin')
+                <a href="{{ route('admin.users.index') }}" class="card text-center transition hover:border-neon">🛂<div class="mt-1 text-sm font-semibold text-cream">Kelola Akun Alumni</div><div class="text-[10px] text-creamDim">edit · hapus · role — Super Admin</div></a>
+            @endrole
             <a href="{{ route('admin.settings') }}" class="card text-center transition hover:border-neon">🎨<div class="mt-1 text-sm font-semibold text-cream">Pengaturan Situs</div><div class="text-[10px] text-creamDim">logo · tema · SMTP</div></a>
             @role('super_admin')
                 <a href="{{ route('admin.terminal') }}" class="card text-center transition hover:border-neon">

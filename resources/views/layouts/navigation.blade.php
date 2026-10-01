@@ -24,6 +24,9 @@
 
         <div class="flex items-center gap-3">
             @auth
+                {{-- 🔔 Ikon notifikasi — pojok kanan atas, di samping tombol profil --}}
+                @include('layouts.partials.notification-bell')
+
                 <x-dropdown align="right" width="56">
                     <x-slot name="trigger">
                         <button class="flex items-center gap-2 rounded-full border border-line/30 py-1 pl-1 pr-3 text-sm text-cream hover:border-neon">

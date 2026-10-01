@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\DirectoryController;
 use App\Mail\AccountApproved;
 use App\Mail\AccountRejected;
 use App\Models\AlumniProfile;
@@ -13,28 +14,35 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\AlumniNotification;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 /**
  * Panel Admin (Super Admin & Pengurus Alumni):
  * verifikasi badge alumni, verifikasi donasi, kelola berita & event,
- * check-in QR event.
+ * check-in QR event. Kelola akun alumni (edit & hapus) khusus Super Admin.
  */
 class AdminController extends Controller implements HasMiddleware
 {
+    /** Role standar komunitas (sesuai dokumen konsep). */
+    private const ROLES = ['super_admin', 'pengurus', 'ketua_angkatan', 'alumni'];
+
     /** Middleware role: umum untuk Super Admin & Pengurus,
-     *  tapi pengaturan tampilan (logo & tema) HANYA Super Admin. */
+     *  tapi pengaturan tampilan (logo & tema) + kelola akun alumni
+     *  (edit & hapus) HANYA Super Admin. */
     public static function middleware(): array
     {
         return [
             'auth',
             new Middleware('role:super_admin|pengurus', except: ['updateAppearance']),
             new Middleware('role:super_admin', only: ['updateAppearance']),
+            new Middleware('role:super_admin', only: ['users', 'editUser', 'updateUser', 'destroyUser']),
         ];
     }
 
@@ -64,6 +72,13 @@ class AdminController extends Controller implements HasMiddleware
     public function approveUser(Request $request, User $user)
     {
         $user->update(['is_approved' => true, 'approval_note' => null]);
+
+        $user->notifySafe(new AlumniNotification(
+            title: '✅ Akun kamu disetujui',
+            message: 'Selamat bergabung di komunitas Alumni SMUN 67 Halim! Silakan login dan lengkapi profilmu.',
+            url: '/dashboard',
+            icon: '✅',
+        ));
 
         $mailInfo = $this->sendSafely(new AccountApproved($user), $user);
 
@@ -95,6 +110,136 @@ class AdminController extends Controller implements HasMiddleware
         }
     }
 
+    /* ---------- KELOLA AKUN ALUMNI (edit & hapus) — HANYA SUPER ADMIN ---------- */
+
+    /** Daftar semua akun teregistrasi + pencarian & filter status/role. */
+    public function users(Request $request)
+    {
+        $q      = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', '');
+        $role   = (string) $request->query('role', '');
+
+        $users = User::with(['profile', 'angkatan', 'roles'])
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($w) use ($q) {
+                    $w->where('name', 'like', "%{$q}%")
+                        ->orWhere('email', 'like', "%{$q}%")
+                        ->orWhereHas('profile', fn ($p) => $p
+                            ->where('kelas', 'like', "%{$q}%")
+                            ->orWhere('pekerjaan', 'like', "%{$q}%")
+                            ->orWhere('kota', 'like', "%{$q}%"));
+                });
+            })
+            ->when($status === 'approved', fn ($query) => $query->where('is_approved', true))
+            ->when($status === 'pending', fn ($query) => $query->where('is_approved', false))
+            ->when($role !== '' && in_array($role, self::ROLES), fn ($query) => $query->role($role))
+            ->orderBy('name')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('admin.users', compact('users', 'q', 'status', 'role'));
+    }
+
+    /** Form edit akun alumni (data akun, role, status approval, profil). */
+    public function editUser(User $user)
+    {
+        $user->loadMissing(['profile', 'angkatan', 'roles']);
+        $user->profile()->firstOrCreate(['user_id' => $user->id]);
+        $user->refresh()->load('profile');
+
+        return view('admin.user-form', [
+            'user'         => $user,
+            'angkatanList' => Angkatan::orderBy('tahun')->get(),
+            'bidangList'   => DirectoryController::BIDANG,
+            'rolesList'    => self::ROLES,
+        ]);
+    }
+
+    /** Simpan perubahan akun + profil + role (HANYA Super Admin). */
+    public function updateUser(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'name'        => ['required', 'string', 'max:100'],
+            'email'       => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
+            'angkatan_id' => ['nullable', 'exists:angkatan,id'],
+            'is_approved' => ['nullable', 'boolean'],
+            'password'    => ['nullable', 'string', 'min:8'], // kosong = tidak diubah
+            'roles'       => ['nullable', 'array'],
+            'roles.*'     => ['string', 'in:'.implode(',', self::ROLES)],
+        ]);
+
+        // Safety: jangan sampai super_admin mencabut role super_admin dari akun sendiri
+        // (atau dari super_admin terakhir) → terkunci dari panel admin.
+        $rolesBaru = array_values($request->input('roles', []));
+        if ($user->hasRole('super_admin')
+            && ! in_array('super_admin', $rolesBaru)
+            && User::role('super_admin')->count() <= 1) {
+            return back()->with('error', 'Tidak bisa mencabut role super_admin — ini satu-satunya Super Admin. Jadikan super_admin lain dulu.');
+        }
+
+        $user->fill([
+            'name'        => $validated['name'],
+            'email'       => $validated['email'],
+            'angkatan_id' => $validated['angkatan_id'] ?? null,
+            'is_approved' => $request->boolean('is_approved'),
+        ]);
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null; // email berubah → wajib verifikasi ulang
+        }
+
+        if (! empty($validated['password'])) {
+            $user->password = $validated['password']; // otomatis di-hash (cast)
+        }
+
+        $user->save();
+        $user->syncRoles($rolesBaru ?: ['alumni']); // minimal role: alumni
+
+        // Profil alumni
+        $profileData = $request->validate([
+            'nis'             => ['nullable', 'string', 'max:30'],
+            'kelas'           => ['nullable', 'string', 'max:30'],
+            'tahun_lulus'     => ['nullable', 'integer', 'min:1990', 'max:2030'],
+            'tgl_lahir'       => ['nullable', 'date'],
+            'no_wa'           => ['nullable', 'string', 'max:30'],
+            'bio'             => ['nullable', 'string', 'max:1000'],
+            'pekerjaan'       => ['nullable', 'string', 'max:100'],
+            'perusahaan'      => ['nullable', 'string', 'max:150'],
+            'bidang'          => ['nullable', 'string', 'max:40'],
+            'kota'            => ['nullable', 'string', 'max:60'],
+            'kampus'          => ['nullable', 'string', 'max:120'],
+            'skill'           => ['nullable', 'string', 'max:300'],
+            'instagram'       => ['nullable', 'string', 'max:100'],
+            'linkedin'        => ['nullable', 'string', 'max:150'],
+            'usaha_nama'      => ['nullable', 'string', 'max:100'],
+            'usaha_deskripsi' => ['nullable', 'string', 'max:300'],
+        ]);
+
+        $user->profile()->updateOrCreate(['user_id' => $user->id], $profileData);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', "Akun {$user->name} berhasil diperbarui ✓");
+    }
+
+    /** Hapus permanen akun alumni + semua data terkait (HANYA Super Admin). */
+    public function destroyUser(Request $request, User $user)
+    {
+        // Safety: tidak bisa hapus akun sendiri & super_admin terakhir
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'Kamu tidak bisa menghapus akun sendiri.');
+        }
+
+        if ($user->hasRole('super_admin') && User::role('super_admin')->count() <= 1) {
+            return back()->with('error', 'Tidak bisa menghapus Super Admin terakhir.');
+        }
+
+        $nama = $user->name;
+        $user->delete(); // profil, post, tiket ikut terhapus (FK cascade/nullify)
+
+        return redirect()->route('admin.users.index')
+            ->with('success', "Akun {$nama} beserta data terkait telah dihapus permanen 🗑️");
+    }
+
     /* ---------- VERIFIKASI BADGE ALUMNI ---------- */
     public function verifications()
     {
@@ -111,15 +256,35 @@ class AdminController extends Controller implements HasMiddleware
             'catatan_verifikasi'  => null,
         ]);
 
+        if ($profile->user) {
+            $profile->user->notifySafe(new AlumniNotification(
+                title: '⭐ Badge terverifikasi!',
+                message: 'Selamat! Profilmu kini berbadge ✓ Terverifikasi di direktori alumni.',
+                url: '/direktori/'.$profile->user_id,
+                icon: '⭐',
+            ));
+        }
+
         return back()->with('success', 'Alumni '.$profile->user->name.' terverifikasi ✓');
     }
 
     public function rejectProfile(Request $request, AlumniProfile $profile)
     {
+        $catatan = $request->string('catatan', 'Data tidak sesuai.');
+
         $profile->update([
             'verification_status' => 'rejected',
-            'catatan_verifikasi'  => $request->string('catatan', 'Data tidak sesuai.'),
+            'catatan_verifikasi'  => $catatan,
         ]);
+
+        if ($profile->user) {
+            $profile->user->notifySafe(new AlumniNotification(
+                title: '✗ Verifikasi badge ditolak',
+                message: 'Catatan admin: '.$catatan,
+                url: '/profile',
+                icon: '✗',
+            ));
+        }
 
         return back()->with('success', 'Pengajuan verifikasi ditolak.');
     }
@@ -135,6 +300,15 @@ class AdminController extends Controller implements HasMiddleware
     public function verifyDonation(DonationTransaction $trx)
     {
         $trx->update(['status' => 'verified']);
+
+        if ($trx->user) {
+            $trx->user->notifySafe(new AlumniNotification(
+                title: '🤝 Donasi terverifikasi',
+                message: 'Donasi Rp '.number_format($trx->amount, 0, ',', '.').' untuk «'.$trx->campaign?->judul.'» sudah diverifikasi panitia. Terima kasih!',
+                url: '/donasi/'.$trx->campaign?->slug,
+                icon: '🤝',
+            ));
+        }
 
         return back()->with('success', 'Donasi Rp '.number_format($trx->amount, 0, ',', '.').' diverifikasi ✓');
     }
@@ -161,6 +335,15 @@ class AdminController extends Controller implements HasMiddleware
     {
         $data = $this->validateBerita($request);
         $berita = Berita::create($data + ['user_id' => auth()->id(), 'published_at' => now()]);
+
+        // 🔔 Broadcast ke semua alumni (berlaku untuk semua user)
+        User::where('is_approved', true)->whereKeyNot(auth()->id())
+            ->each(fn (User $u) => $u->notifySafe(new AlumniNotification(
+                title: '📰 Berita baru: '.$berita->judul,
+                message: \Illuminate\Support\Str::limit($berita->ringkasan ?? $berita->isi, 90),
+                url: '/berita/'.$berita->slug,
+                icon: '📰',
+            )));
 
         return redirect()->route('berita.show', $berita)->with('success', 'Berita terbit!');
     }

@@ -70,7 +70,8 @@ Role mengacu dokumen konsep: **Super Admin · Pengurus Alumni · Ketua Angkatan 
 | **Mobile-first UI** | Tema navy + neon identik situs reuni, **menu bawah mobile**: Home · Feed · Jobs · Event · Profile |
 
 ### Phase 2 — 🎯 Next (fondasi sudah siap)
-- Notifikasi real-time, chat pribadi (tabel `messages` tinggal dibuat)
+- ~~Notifikasi real-time~~ ✅ **SUDAH JADI** — ikon lonceng 🔔 di pojok kanan atas (lihat di bawah)
+- ~~Chat pribadi~~ ✅ **SUDAH JADI** — widget 💬 melayang di pojok kanan bawah (lihat di bawah)
 - Voting/polling di forum (dokumen: pilih lokasi reuni, voting kaos)
 - Booking meja & doorprize event
 
@@ -183,6 +184,74 @@ Akun hasil register **tidak langsung aktif** — harus disetujui admin dulu:
 3. User yang disetujui login seperti biasa.
 
 > Migration: `2026_09_21_..._add_is_approved_to_users_table` — kolom `is_approved` default `true` sehingga user lama tetap aktif; hanya register baru yang dikunci. Jalankan `migrate --force` lewat Terminal setelah upload.
+
+## 🛂 Kelola Akun Alumni — khusus Super Admin
+
+Menu **Admin → 🛂 Kelola Akun Alumni** (`/admin/alumni`) — hanya role `super_admin` yang bisa mengakses (role lain → 403):
+
+| Kemampuan | Detail |
+|---|---|
+| **Daftar & cari** | Semua akun teregistrasi + pencarian (nama, email, kelas, pekerjaan, kota) + filter status & role, pagination 20/halaman |
+| **✎ Edit akun** | Nama, email, angkatan, **reset password**, status approval (aktif/nonaktif), **ganti role** (super_admin/pengurus/ketua_angkatan/alumni), dan semua data profil (kelas, NIS, pekerjaan, kota, WA, dll.) |
+| **🗑 Hapus permanen** | Akun + seluruh data terkait (profil, post feed, komentar, tiket event, lowongan) — FK cascade/nullify |
+
+**Proteksi keamanan bawaan:**
+- Tidak bisa menghapus **akun sendiri**
+- Tidak bisa menghapus / mencabut role **Super Admin terakhir** (anti terkunci dari panel)
+- Email harus unik; ganti email otomatis me-reset status verifikasi email
+- Semua aksi hapus meminta konfirmasi di browser
+
+> Route: `admin/users.index` · `admin/users.edit` · `admin/users.update` · `admin/users.destroy` — diproteksi middleware `role:super_admin`.
+
+## 🔔 Notifikasi (ikon lonceng — pojok kanan atas)
+
+Ikon **🔔 di samping tombol profil** (navbar) — **berlaku untuk semua user login** (semua role). Badge merah menampilkan jumlah belum dibaca, auto-refresh tiap 30 detik + saat tab aktif kembali.
+
+| Pemicu notifikasi | Untuk siapa |
+|---|---|
+| ❤️ Postingan disukai | pemilik post |
+| 💬 Postingan dikomentari | pemilik post |
+| 🗣️ Diskusi forum dibalas | pembuat thread (anonimitas reply dijaga → “Seseorang”) |
+| 🎉 Registrasi event sukses | peserta |
+| ✅ Akun disetujui | pendaftar baru |
+| ⭐ Badge terverifikasi / ✗ ditolak | pengaju verifikasi |
+| 🤝 Donasi terverifikasi | donatur |
+| 📰 Berita baru | **broadcast ke semua alumni** |
+| 💬 Pesan chat baru | penerima chat |
+
+**Fitur:** dropdown 6 terbaru (klik item → tandai dibaca + buka halaman terkait) · halaman lengkap `/notifikasi` · tombol *Tandai semua dibaca* · polling JSON `/notifikasi/poll`.
+
+> Migration: `2026_10_01_..._create_notifications_table` (channel `database` bawaan Laravel). Jalankan `migrate --force` setelah deploy.
+
+## 💬 Chat Antar Alumni (widget melayang — pojok kanan bawah)
+
+Tombol **💬 melayang di pojok kanan bawah** semua halaman — khusus **user yang sudah login** (dan akunnya disetujui).
+
+| Fitur | Detail |
+|---|---|
+| Daftar kontak | Semua alumni disetujui + pencarian nama/kelas + pesan terakhir + badge merah belum-dibaca |
+| Percakapan | Bubble chat kiri/kanan, pemisah tanggal, **✓ terkirim · ✓✓ sudah dibaca** |
+| Kirim pesan | Enter kirim · Shift+Enter baris baru · auto-grow textarea · maks 2000 karakter |
+| Live update | Polling ringan tiap 5 detik (pesan baru) & 15 detik (kontak/unread) — tanpa websocket |
+| Notifikasi 🔔 | Penerima otomatis dapat notifikasi lonceng; klik → langsung buka percakapan (`/chat?with={id}`) |
+| Privasi | Pesan privat antar 2 orang; chat sendiri ditolak (422) |
+
+> Migration: `2026_10_01_..._create_messages_table` — tabel `messages` (from/to/body/read_at).
+> Widget & ikon lonceng memakai asset statis `public/css/widgets.css` + `public/js/widgets.js` (tanpa npm build).
+
+## 🆙 Upgrade Aplikasi di cPanel (TANPA SSH & tanpa downtime error)
+
+Semua fitur baru (kelola akun 🛂, notifikasi 🔔, chat 💬) **aman di-deploy sebelum migrasi dijalankan** — halaman tidak error walau tabelnya belum ada (mode aman): lonceng/chat menampilkan 0 & petunjuk, semua aksi seperti like/komentar/berita tetap jalan.
+
+Langkah upgrade di hosting cPanel:
+
+1. **Upload file kode baru** (app/, database/migrations/, public/css/widgets.css, public/js/widgets.js, resources/views/, routes/) — situs tetap jalan seperti biasa.
+2. Login sebagai **Super Admin** → **Admin → 🖥️ Terminal Artisan** (`/admin/terminal`).
+3. Klik tombol cepat **📚 Database → `migrate --force`** (atau jalankan perintah manualnya).
+4. Selesai — ikon lonceng 🔔 & chat 💬 langsung aktif. Refresh halaman.
+
+> Bila panel Terminal tidak muncul (role super_admin belum terpasang), gunakan `setup.php?repair` untuk mem-promote akun kamu, logout → login ulang.
+> Alternatif: buka `https://domain/setup.php` — installer juga menjalankan `migrate --force` otomatis.
 
 ## 📧 SMTP & Email HTML
 

@@ -20,7 +20,9 @@
 
         {{-- Asset statis di public/ — tanpa Vite build, nama file tetap --}}
         <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+        <link rel="stylesheet" href="{{ asset('css/widgets.css') }}">
         <script src="{{ asset('js/app.js') }}" defer></script>
+        <script src="{{ asset('js/widgets.js') }}" defer></script>
     </head>
     <body class="font-sans pb-16 lg:pb-0">
         {{-- Tombol ganti tema dark/light — melayang.
@@ -63,5 +65,8 @@
                 </a>
             </div>
         </nav>
+
+        {{-- Chat antar alumni 💬 — melayang pojok kanan bawah (khusus login) --}}
+        @include('layouts.partials.chat-widget')
     </body>
 </html>

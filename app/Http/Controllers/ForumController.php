@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ForumThread;
+use App\Notifications\AlumniNotification;
 use Illuminate\Http\Request;
 
 class ForumController extends Controller
@@ -55,10 +56,23 @@ class ForumController extends Controller
     {
         $data = $request->validate(['isi' => 'required|string|max:3000']);
 
+        $isAnonim = $request->boolean('is_anonymous');
+
         $thread->replies()->create($data + [
             'user_id'      => auth()->id(),
-            'is_anonymous' => $request->boolean('is_anonymous'),
+            'is_anonymous' => $isAnonim,
         ]);
+
+        // 🔔 Notifikasi untuk pembuat thread (anonimitas reply dijaga)
+        if ($thread->user_id && $thread->user_id !== auth()->id() && $thread->user) {
+            $pengirim = $isAnonim ? 'Seseorang (anonim)' : auth()->user()->name;
+            $thread->user->notifySafe(new AlumniNotification(
+                title: '🗣️ Diskusimu dibalas',
+                message: $pengirim.' membalas thread «'.$thread->judul.'».',
+                url: '/forum/'.$thread->id,
+                icon: '🗣️',
+            ));
+        }
 
         return back()->with('success', 'Balasan terkirim!');
     }

@@ -80,4 +80,37 @@ class User extends Authenticatable
 
         return $kelas ? "{$this->name} — {$kelas}" : $this->name;
     }
+
+    /* ---------- NOTIFIKASI AMAN (tabel boleh belum ada) ---------- */
+
+    /** Kirim notifikasi tanpa risiko error walau tabel `notifications` belum dibuat
+     *  (mis. setelah deploy ke cPanel sebelum `migrate` dijalankan lewat Terminal admin). */
+    public function notifySafe(object $notification): void
+    {
+        try {
+            $this->notify($notification);
+        } catch (\Throwable) {
+            // Tabel belum ada / DB bermasalah → abaikan diam-diam agar aksi utama tetap sukses.
+        }
+    }
+
+    /** Jumlah belum-dibaca — 0 bila tabel belum ada. */
+    public function unreadNotificationsCountSafe(): int
+    {
+        try {
+            return $this->unreadNotifications()->count();
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /** Notifikasi terbaru — koleksi kosong bila tabel belum ada. */
+    public function recentNotificationsSafe(int $limit = 6): \Illuminate\Support\Collection
+    {
+        try {
+            return $this->notifications()->latest()->limit($limit)->get();
+        } catch (\Throwable) {
+            return collect();
+        }
+    }
 }

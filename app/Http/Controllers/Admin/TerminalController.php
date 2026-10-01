@@ -81,6 +81,7 @@ class TerminalController extends Controller implements HasMiddleware
     public function index()
     {
         return view('admin.terminal', [
+            'pending' => $this->pendingMigrations(),
             'groups' => [
                 ['📚 Database', [
                     ['migrate --force',      '▶ migrate',      false],
@@ -131,8 +132,11 @@ class TerminalController extends Controller implements HasMiddleware
             }
 
             if (str_starts_with($token, '--')) {
+                // WAJIB simpan prefix "--" — Artisan::call() membedakan option
+                // ("--force") vs argument posisi ("force") — tanpa prefix muncul
+                // error: The "force" argument does not exist.
                 [$key, $value] = array_pad(explode('=', substr($token, 2), 2), 2, null);
-                $params[$key] = $value ?? true;
+                $params['--'.$key] = $value ?? true;
             } elseif (str_starts_with($token, '-')) {
                 $params[$token] = true;
             }
@@ -144,13 +148,13 @@ class TerminalController extends Controller implements HasMiddleware
         }
 
         /* ---- whitelist seeder untuk db:seed --class=... ---- */
-        if (($class = $params['class'] ?? null) && is_string($class) && ! $this->seederExists($class)) {
+        if (($class = $params['--class'] ?? null) && is_string($class) && ! $this->seederExists($class)) {
             return back()->with('terminal_error', "Seeder «{$class}» tidak ditemukan di database/seeders.");
         }
 
         /* ---- tambah --force otomatis untuk perintah migrasi/seed di produksi ---- */
         if (in_array($name, self::AUTO_FORCE, true)) {
-            $params['force'] = true;
+            $params['--force'] = true;
         }
 
         /* ---- storage:link ditangani khusus: cPanel mematikan symlink()/exec()
@@ -171,7 +175,7 @@ class TerminalController extends Controller implements HasMiddleware
                 $lines[] = ($role->wasRecentlyCreated ? '+ role DIBUAT: ' : '· role ada: ').$r;
             }
 
-            $uid = $params['user'] ?? null;
+            $uid = $params['--user'] ?? null;
             if ($uid && ! is_bool($uid)) {
                 $u = \App\Models\User::find((int) $uid);
                 if ($u) {
@@ -213,6 +217,24 @@ class TerminalController extends Controller implements HasMiddleware
         }
 
         return back()->with('terminal_output', $log);
+    }
+
+    /** Daftar migrasi yang belum dijalankan (Pending) — untuk banner peringatan di halaman terminal. */
+    private function pendingMigrations(): array
+    {
+        try {
+            $migrator = app('migrator');
+
+            // paths() hanya berisi path TAMBAHAN — path default database/migrations
+            // harus digabung manual (perilaku sama dgn MigrateCommand internal).
+            $paths = array_merge([database_path('migrations')], $migrator->paths());
+            $ran   = $migrator->getRepository()->getRan();
+            $files = array_keys($migrator->getMigrationFiles($paths));
+
+            return array_values(array_diff($files, $ran));
+        } catch (\Throwable) {
+            return []; // DB bermasalah → jangan blokir halaman terminal
+        }
     }
 
     private function seederExists(string $class): bool

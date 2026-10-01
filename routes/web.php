@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\TerminalController;
 use App\Http\Controllers\BeritaController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\DonationController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\FeedController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\LandingController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StorageController;
 use Illuminate\Support\Facades\Route;
@@ -75,6 +77,20 @@ Route::middleware('auth')->group(function () {
     // Donasi
     Route::post('/donasi/{campaign}/donate', [DonationController::class, 'donate'])->name('donasi.donate');
 
+    // Notifikasi (ikon lonceng — semua user login)
+    Route::get('/notifikasi', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifikasi/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
+    Route::post('/notifikasi/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifikasi/{id}/read-ajax', [NotificationController::class, 'markReadAjax'])->name('notifications.readajax');
+    Route::post('/notifikasi/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.readall');
+
+    // Chat pribadi antar alumni (widget 💬 pojok kanan bawah)
+    Route::get('/chat', [ChatController::class, 'page'])->name('chat.page');
+    Route::get('/chat/contacts', [ChatController::class, 'contacts'])->name('chat.contacts');
+    Route::get('/chat/{peer}', [ChatController::class, 'conversation'])->name('chat.show');
+    Route::post('/chat/{peer}', [ChatController::class, 'send'])->name('chat.send');
+    Route::get('/chat/{peer}/poll', [ChatController::class, 'poll'])->name('chat.poll');
+
     // Profil
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -90,6 +106,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/user-pending', [AdminController::class, 'pendingUsers'])->name('users.pending');
         Route::post('/user/{user}/approve', [AdminController::class, 'approveUser'])->name('users.approve');
         Route::post('/user/{user}/reject', [AdminController::class, 'rejectUser'])->name('users.reject');
+
+        // Kelola akun teregistrasi (edit & hapus) — HANYA Super Admin
+        Route::get('/alumni', [AdminController::class, 'users'])->name('users.index');
+        Route::get('/alumni/{user}/edit', [AdminController::class, 'editUser'])->name('users.edit');
+        Route::put('/alumni/{user}', [AdminController::class, 'updateUser'])->name('users.update');
+        Route::delete('/alumni/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
 
         Route::get('/verifikasi', [AdminController::class, 'verifications'])->name('verifications');
         Route::post('/verifikasi/{profile}/approve', [AdminController::class, 'approveProfile'])->name('verifications.approve');

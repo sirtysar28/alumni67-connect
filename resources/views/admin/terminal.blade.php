@@ -13,6 +13,24 @@
             Hanya perintah whitelist yang diizinkan (aman dari injeksi).
         </p>
 
+        {{-- ==== BANNER MIGRASI PENDING ==== --}}
+        @if (count($pending) > 0)
+            <div class="mt-6 rounded-lg border border-yellow-400/50 bg-yellow-400/10 p-4">
+                <div class="font-semibold text-yellow-300">⚠ {{ count($pending) }} migrasi menunggu dijalankan (Pending)</div>
+                <div class="mt-1">
+                    <ul class="list-inside list-disc font-mono text-[11px] text-creamDim">
+                        @foreach ($pending as $m)<li>{{ $m }}</li>@endforeach
+                    </ul>
+                    <p class="mt-2 text-xs text-creamDim">Fitur terkait (cth. notifikasi 🔔 / chat 💬 / kelola akun) baru aktif setelah migrasi dijalankan.</p>
+                </div>
+                <form method="POST" action="{{ route('admin.terminal.run') }}" class="mt-3">
+                    @csrf
+                    <input type="hidden" name="command" value="migrate --force">
+                    <button type="submit" class="btn-neon !py-2 text-xs">▶ Jalankan migrate --force sekarang</button>
+                </form>
+            </div>
+        @endif
+
         {{-- ==== OUTPUT / ERROR ==== --}}
         @php $output = session('terminal_output'); $error = session('terminal_error'); @endphp
         @if ($error)
